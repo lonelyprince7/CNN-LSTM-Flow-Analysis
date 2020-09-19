@@ -12,15 +12,18 @@ import data_helper
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 # File paths
-tf.flags.DEFINE_string('test_data_file', None, 'Test data file path')
-tf.flags.DEFINE_string('run_dir', None, 'Restore the model from this run')
-tf.flags.DEFINE_string('checkpoint', None, 'Restore the graph from this checkpoint')
-
+tf.flags.DEFINE_string('test_data_file', './data/test_data.csv', 'Test data file path')
+tf.flags.DEFINE_string('run_dir', './model', 'Restore the model from this run')
+tf.flags.DEFINE_string('checkpoint', 'clf', 'Restore the graph from this checkpoint')
 # Test batch size
 tf.flags.DEFINE_integer('batch_size', 64, 'Test batch size')
 
 FLAGS = tf.app.flags.FLAGS
 
+print('\n',"*****打印超参数如下：******")
+for key in FLAGS.flag_values_dict():
+    print(key, FLAGS[key].value)
+print("************************",'\n')
 # Restore parameters
 with open(os.path.join(FLAGS.run_dir, 'params.pkl'), 'rb') as f:
     params = pkl.load(f, encoding='bytes')
@@ -36,15 +39,14 @@ data, labels, lengths, _ = data_helper.load_data(file_path=FLAGS.test_data_file,
                                                  language=params['language'],
                                                  vocab_processor=vocab_processor,
                                                  shuffle=False)
-
 # Restore graph
 graph = tf.Graph()
 with graph.as_default():
     sess = tf.Session()
     # Restore metagraph
-    saver = tf.train.import_meta_graph('{}.meta'.format(os.path.join(FLAGS.run_dir, 'model', FLAGS.checkpoint)))
+    saver = tf.train.import_meta_graph('{}.meta'.format(os.path.join(FLAGS.run_dir,FLAGS.checkpoint)))
     # Restore weights
-    saver.restore(sess, os.path.join(FLAGS.run_dir, 'model', FLAGS.checkpoint))
+    saver.restore(sess, os.path.join(FLAGS.run_dir, FLAGS.checkpoint))
 
     # Get tensors
     input_x = graph.get_tensor_by_name('input_x:0')
@@ -59,7 +61,6 @@ with graph.as_default():
     num_batches = int(len(data)/FLAGS.batch_size)
     all_predictions = []
     sum_accuracy = 0
-
     # Test
     for batch in batches:
         x_test, y_test, x_lengths = batch
@@ -72,7 +73,6 @@ with graph.as_default():
             feed_dict = {input_x: x_test, input_y: y_test, batch_size: FLAGS.batch_size, sequence_length: x_lengths, keep_prob: 1.0}
 
             batch_predictions, batch_accuracy = sess.run([predictions, accuracy], feed_dict)
-
         sum_accuracy += batch_accuracy
         all_predictions = np.concatenate([all_predictions, batch_predictions])
 

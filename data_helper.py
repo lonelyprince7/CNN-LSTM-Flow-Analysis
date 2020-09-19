@@ -9,9 +9,9 @@ import collections
 
 import numpy as np
 from tensorflow.contrib import learn
+import pandas as pd
 
-
-def load_data(file_path, sw_path=None, min_frequency=0, max_length=0, language='ch', vocab_processor=None, shuffle=True):
+def load_data(file_path, sw_path=None, min_frequency=0, max_length=0, language='en', vocab_processor=None, shuffle=True):
     """
     Build dataset for mini-batch iterator
     :param file_path: Data file path
@@ -23,66 +23,61 @@ def load_data(file_path, sw_path=None, min_frequency=0, max_length=0, language='
     :param shuffle: whether to shuffle the data
     :return data, labels, lengths, vocabulary processor
     """
-    with open(file_path, 'r', encoding='utf-8') as f:
-        print('Building dataset ...')
-        start = time.time()
-        incsv = csv.reader(f)
-        header = next(incsv)  # Header
-        label_idx = header.index('label')
-        content_idx = header.index('content')
 
-        labels = []
-        sentences = []
+    data=pd.read_csv(file_path,encoding="utf-8")
 
-        if sw_path is not None:
-            sw = _stop_words(sw_path)
+    print('Building dataset ...')
+    labels=data['label'].tolist()
+    urls=data['content'].tolist() 
+
+    start=time.time()
+
+    new_urls=[]
+    new_labels=[]
+    if sw_path is not None:
+        sw = _stop_words(sw_path)
+    else:
+        sw = None
+
+    for url,label in zip(urls,labels):
+        url=url.strip()
+        if language == 'ch':
+            url = _tradition_2_simple(url)  # Convert traditional Chinese to simplified Chinese
+        elif language == 'en':
+            url = url.lower()
         else:
-            sw = None
-
-        for line in incsv:
-            sent = line[content_idx].strip()
-
-            if language == 'ch':
-                sent = _tradition_2_simple(sent)  # Convert traditional Chinese to simplified Chinese
-            elif language == 'en':
-                sent = sent.lower()
-            else:
-                raise ValueError('language should be one of [ch, en].')
-
-            sent = _clean_data(sent, sw, language=language)  # Remove stop words and special characters
-
-            if len(sent) < 1:
-                continue
-
-            if language == 'ch':
-                sent = _word_segmentation(sent)
-            sentences.append(sent)
-
-            if int(line[label_idx]) < 0:
-                labels.append(2)
-            else:
-                labels.append(int(line[label_idx]))
-
-    labels = np.array(labels)
+            raise ValueError('language should be one of [ch, en].')
+        url = _clean_data(url, sw, language=language)  # Remove stop words and special characters
+        if len(url) < 1:
+            continue
+        if language == 'ch':
+            url = _word_segmentation(url)
+        new_urls.append(url)
+        if int(label) < 0:
+            new_labels.append(2)
+        else:
+            new_labels.append(int(label))
+    new_labels = np.array(new_labels)
+    # print(new_urls)
     # Real lengths
-    lengths = np.array(list(map(len, [sent.strip().split(' ') for sent in sentences])))
-
+    lengths = np.array(list(map(len, [url.strip().split(' ') for url in new_urls])))
+    # print(lengths.　)
     if max_length == 0:
         max_length = max(lengths)
 
     # Extract vocabulary from sentences and map words to indices
     if vocab_processor is None:
         vocab_processor = learn.preprocessing.VocabularyProcessor(max_length, min_frequency=min_frequency)
-        data = np.array(list(vocab_processor.fit_transform(sentences)))
+        data = np.array(list(vocab_processor.fit_transform(new_urls)))
     else:
-        data = np.array(list(vocab_processor.transform(sentences)))
+        data = np.array(list(vocab_processor.transform(new_urls)))
 
     data_size = len(data)
 
     if shuffle:
         shuffle_indices = np.random.permutation(np.arange(data_size))
         data = data[shuffle_indices]
-        labels = labels[shuffle_indices]
+        new_labels = new_labels[shuffle_indices]
         lengths = lengths[shuffle_indices]
 
     end = time.time()
@@ -92,8 +87,7 @@ def load_data(file_path, sw_path=None, min_frequency=0, max_length=0, language='
     print('Number of sentences: {}'.format(len(data)))
     print('Vocabulary size: {}'.format(len(vocab_processor.vocabulary_._mapping)))
     print('Max document length: {}\n'.format(vocab_processor.max_document_length))
-    
-    return data, labels, lengths, vocab_processor
+    return data, new_labels, lengths, vocab_processor
 
 
 def batch_iter(data, labels, lengths, batch_size, num_epochs):

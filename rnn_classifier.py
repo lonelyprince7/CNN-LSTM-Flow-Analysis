@@ -24,10 +24,11 @@ class rnn_clf(object):
 
         # Word embedding
         with tf.device('/cpu:0'), tf.name_scope('embedding'):
+            #embedding为x->h的隐藏层矩阵
             embedding = tf.get_variable('embedding',
-                                        shape=[self.vocab_size, self.hidden_size],
+                                        shape=[self.vocab_size, self.hidden_size], #vocab_size即|V|,hidden_size即词向量维度
                                         dtype=tf.float32)
-            inputs = tf.nn.embedding_lookup(embedding, self.input_x)
+            inputs = tf.nn.embedding_lookup(embedding, self.input_x) #返回embedding张量中对应input_x索引的元素
 
         # Input dropout
         self.inputs = tf.nn.dropout(inputs, keep_prob=self.keep_prob)

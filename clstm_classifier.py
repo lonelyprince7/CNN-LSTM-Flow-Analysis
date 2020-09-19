@@ -8,23 +8,22 @@ class clstm_clf(object):
     A C-LSTM classifier for text classification
     Reference: A C-LSTM Neural Network for Text Classification
     """
-    def __init__(self, config):
+    def __init__(self, config): 
         self.max_length = config.max_length
         self.num_classes = config.num_classes
         self.vocab_size = config.vocab_size
-        self.embedding_size = config.embedding_size
+        self.embedding_size = config.embedding_size #词向量的维度
         self.filter_sizes = list(map(int, config.filter_sizes.split(",")))
         self.num_filters = config.num_filters
         self.hidden_size = len(self.filter_sizes) * self.num_filters
         self.num_layers = config.num_layers
         self.l2_reg_lambda = config.l2_reg_lambda
-
         # Placeholders
         self.batch_size = tf.placeholder(dtype=tf.int32, shape=[], name='batch_size')
         self.input_x = tf.placeholder(dtype=tf.int32, shape=[None, self.max_length], name='input_x')
         self.input_y = tf.placeholder(dtype=tf.int64, shape=[None], name='input_y')
         self.keep_prob = tf.placeholder(dtype=tf.float32, shape=[], name='keep_prob')
-        self.sequence_length = tf.placeholder(dtype=tf.int32, shape=[None], name='sequence_length')
+        self.sequence_length = tf.placeholder(dtype=tf.int32, shape=[None], name='sequence_length') #句子长度
 
         # L2 loss
         self.l2_loss = tf.constant(0.0)
@@ -32,9 +31,10 @@ class clstm_clf(object):
         # Word embedding
         with tf.device('/cpu:0'), tf.name_scope('embedding'):
             embedding = tf.Variable(tf.random_uniform([self.vocab_size, self.embedding_size], -1.0, 1.0),
-                                    name="embedding")
-            embed = tf.nn.embedding_lookup(embedding, self.input_x)
-            inputs = tf.expand_dims(embed, -1)
+                                    name="embedding") #vocabsize*embedding_size的[-1,1)均匀分布
+            embed = tf.nn.embedding_lookup(embedding, self.input_x) #选取张量中序号为input_x的
+            inputs = tf.expand_dims(embed, -1) 
+        #-1表示最后一维，比如(2,3)张量->(2,3,1)，0表示在最前面增加一维，-1表示在最后面增加一维，1表示在第一个位置累加(3,3)
 
         # Input dropout
         inputs = tf.nn.dropout(inputs, keep_prob=self.keep_prob)

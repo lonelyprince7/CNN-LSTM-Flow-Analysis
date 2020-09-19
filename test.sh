@@ -1,0 +1,1 @@
+python3 test.py --test_data_file=./data/test_data.csv --run_dir=./model --checkpoint=clf

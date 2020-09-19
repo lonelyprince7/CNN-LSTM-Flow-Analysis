@@ -8,7 +8,7 @@ import datetime
 import pickle as pkl
 import tensorflow as tf
 from tensorflow.contrib import learn
-
+from tensorflow.python.framework import graph_util
 import data_helper
 from rnn_classifier import rnn_clf
 from cnn_classifier import cnn_clf
@@ -35,7 +35,7 @@ tf.flags.DEFINE_string('data_file', None, 'Data file path')
 tf.flags.DEFINE_string('stop_word_file', None, 'Stop word file path')
 tf.flags.DEFINE_string('language', 'en', "Language of the data file. You have two choices: [ch, en]")
 tf.flags.DEFINE_integer('min_frequency', 0, 'Minimal word frequency')
-tf.flags.DEFINE_integer('num_classes', 2, 'Number of classes')
+tf.flags.DEFINE_integer('num_classes', 3, 'Number of classes')
 tf.flags.DEFINE_integer('max_length', 0, 'Max document length')
 tf.flags.DEFINE_integer('vocab_size', 0, 'Vocabulary size')
 tf.flags.DEFINE_float('test_size', 0.1, 'Cross validation test size')
@@ -68,7 +68,7 @@ elif FLAGS.clf == 'clstm':
 
 # Output files directory
 timestamp = str(int(time.time()))
-outdir = os.path.abspath(os.path.join(os.path.curdir, "runs", timestamp))
+outdir = os.path.join(os.path.curdir,'model')
 if not os.path.exists(outdir):
     os.makedirs(outdir)
 
@@ -148,7 +148,7 @@ with tf.Graph().as_default():
                                                    staircase=True)
         optimizer = tf.train.AdamOptimizer(learning_rate)
         grads_and_vars = optimizer.compute_gradients(classifier.cost)
-        train_op = optimizer.apply_gradients(grads_and_vars, global_step=global_step)
+        train_op = optimizer.apply_gradients(grads_and_vars, global_step=global_step,name='op_to_store')
 
         # Summaries
         loss_summary = tf.summary.scalar('Loss', classifier.cost)
@@ -199,11 +199,11 @@ with tf.Graph().as_default():
             accuracy = vars['accuracy']
             summaries = vars['summaries']
 
-            # Write summaries to file
-            if is_training:
-                train_summary_writer.add_summary(summaries, step)
-            else:
-                valid_summary_writer.add_summary(summaries, step)
+            # # Write summaries to file
+            # if is_training:
+            #     train_summary_writer.add_summary(summaries, step)
+            # else:
+            #     valid_summary_writer.add_summary(summaries, step)
 
             time_str = datetime.datetime.now().isoformat()
             print("{}: step: {}, loss: {:g}, accuracy: {:g}".format(time_str, step, cost, accuracy))
@@ -223,6 +223,16 @@ with tf.Graph().as_default():
                 print('')
 
             if current_step % FLAGS.save_every_steps == 0:
-                save_path = saver.save(sess, os.path.join(outdir, 'model/clf'), current_step)
-
+                # saver = tf.train.Saver()
+                # save_path = saver.save(sess, os.path.join(outdir, 'clf'))
+                # constant_graph = graph_util.convert_variables_to_constants(sess, sess.graph_def, ['op_to_store'])
+                # with tf.gfile.FastGFile(os.path.join(outdir,'clf.pb'), mode='wb') as f:
+                #     f.write(constant_graph.SerializeToString())
+                    # 官网有误，写成了 saved_model_builder  
+                builder = tf.saved_model.builder.SavedModelBuilder(outdir)
+                # 构造模型保存的内容，指定要保存的 session，特定的 tag, 
+                # 输入输出信息字典，额外的信息
+                builder.add_meta_graph_and_variables(sess,
+                                                ['cpu_server_1'])
+                builder.save()
         print('\nAll the files have been saved to {}\n'.format(outdir))
