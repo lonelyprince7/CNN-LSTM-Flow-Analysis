@@ -1,1 +1,1 @@
-python3 test.py --test_data_file=./data/test_data.csv --run_dir=./model --checkpoint=clf
+python3 test.py --test_data_file=./data/test_data.csv --output_data_file=./out/prediction.csv --model_dir=./model/1600693479 --params_dir=./params
