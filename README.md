@@ -1,5 +1,5 @@
-# Multi-class Text Classification
-Implement four neural networks in Tensorflow for multi-class text classification problem.
+# Multi-class Flow Classification
+Implement four neural networks in Tensorflow for multi-class url classification problem.
 ## Models
 * A LSTM classifier. See rnn_classifier.py
 * A Bidirectional LSTM classifier. See rnn_classifier.py
